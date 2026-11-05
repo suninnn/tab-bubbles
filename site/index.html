@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TabBubbles: see every open tab at a glance</title>
+<meta name="description" content="TabBubbles is a free, open-source Chrome extension. Every open tab becomes a coloured tile in the side panel, coloured by how long you have left it, and it reminds you about things you left half done.">
+<link rel="icon" href="img/icon128.png">
+<style>
+/* TabBubbles product page. No external fonts, scripts or trackers. */
+:root {
+  color-scheme: light;
+  --bg-0: oklch(97.5% 0.012 250);
+  --glow-1: oklch(90% 0.06 240 / .7);
+  --glow-2: oklch(92% 0.05 330 / .55);
+  --glow-3: oklch(93% 0.06 170 / .5);
+  --glass: oklch(99% 0.004 250 / .66);
+  --glass-edge: oklch(100% 0 0 / .8);
+  --line: oklch(70% 0.02 250 / .22);
+  --shadow: 0 1px 1px oklch(30% 0.03 250 / .04), 0 10px 30px -10px oklch(30% 0.04 250 / .18);
+  --text: oklch(24% 0.02 255);
+  --muted: oklch(46% 0.02 255);
+  --primary: oklch(52% 0.17 260);
+  --primary-hover: oklch(46% 0.17 260);
+  --on-primary: oklch(99% 0 0);
+  --task: oklch(60% 0.17 45);
+  --green: oklch(89% 0.10 150);
+  --yellow: oklch(93% 0.12 100);
+  --red: oklch(86% 0.09 22);
+  --focus: oklch(55% 0.17 260);
+  --radius: 18px;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --font: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { background: var(--bg-0); scroll-behavior: smooth; }
+body {
+  margin: 0; color: var(--text); font: 17px/1.6 var(--font);
+  background:
+    radial-gradient(50% 35% at 0% 0%, var(--glow-1), transparent 70%),
+    radial-gradient(45% 30% at 100% 25%, var(--glow-2), transparent 70%),
+    radial-gradient(60% 35% at 15% 85%, var(--glow-3), transparent 70%),
+    var(--bg-0);
+}
+[data-lang="en"] .zh, [data-lang="zh"] .en { display: none; }
+a { color: var(--primary); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+.wrap { width: min(1080px, 100% - 40px); margin-inline: auto; }
+.glass { background: var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--radius); box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%); }
+
+/* top bar */
+.top { position: sticky; top: 12px; z-index: 10; margin-top: 12px; display: flex; align-items: center; gap: 16px; padding: 10px 14px 10px 16px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; color: var(--text); }
+.brand img { width: 28px; height: 28px; }
+.top nav { display: flex; gap: 18px; margin-left: auto; font-size: 15px; }
+.top nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
+.top nav a:hover { color: var(--text); }
+.lang { border: 1px solid var(--line); background: var(--glass); color: var(--text); border-radius: 999px; padding: 5px 12px; font: 600 14px var(--font); cursor: pointer; white-space: nowrap; }
+.lang:hover { border-color: var(--focus); }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 48px; align-items: center; padding: 72px 0 56px; }
+.hero h1 { font-size: clamp(2.3rem, 5.2vw, 3.9rem); line-height: 1.05; letter-spacing: -.025em; margin: 0 0 18px; overflow-wrap: anywhere; }
+.hero p.lead { font-size: 1.2rem; color: var(--muted); margin: 0 0 28px; max-width: 34ch; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font-weight: 650; text-decoration: none; white-space: nowrap;
+  transition: background-color .15s var(--ease-out), transform .1s var(--ease-out); }
+.btn.primary { background: var(--primary); color: var(--on-primary); }
+.btn.primary:hover { background: var(--primary-hover); }
+.btn.primary:active { transform: translateY(1px); }
+.btn.ghost { color: var(--text); border: 1px solid var(--line); background: var(--glass); }
+.btn.ghost:hover { border-color: var(--focus); }
+.note { font-size: 14px; color: var(--muted); margin-top: 14px; }
+.shot-panel { justify-self: center; position: relative; width: min(340px, 100%); padding: 10px; }
+.shot-panel img { display: block; width: 100%; height: auto; border-radius: 12px; }
+.floaty { position: absolute; border-radius: 16px; z-index: -1; }
+.floaty.g { width: 120px; height: 120px; background: var(--green); left: -70px; top: 40px; }
+.floaty.y { width: 80px; height: 80px; background: var(--yellow); right: -40px; top: -20px; animation-duration: 9s; }
+.floaty.r { width: 150px; height: 150px; background: var(--red); right: -80px; bottom: 30px; animation-duration: 11s; }
+
+/* sections */
+section { padding: 56px 0; }
+h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -.02em; line-height: 1.15; margin: 0 0 10px; }
+.sub { color: var(--muted); margin: 0 0 32px; max-width: 60ch; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; counter-reset: s; }
+.steps li { padding: 22px; counter-increment: s; }
+.steps li::before { content: counter(s); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: var(--on-primary); font-weight: 700; margin-bottom: 12px; }
+.steps h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.steps p { margin: 0; color: var(--muted); font-size: 15px; }
+.wide-shot { margin: 32px 0 0; padding: 10px; }
+.wide-shot img { display: block; width: 100%; height: auto; border-radius: 12px; }
+.wide-shot figcaption { font-size: 14px; color: var(--muted); padding: 10px 6px 2px; }
+
+.colours { display: flex; flex-wrap: wrap; gap: 14px 26px; margin: 0 0 32px; }
+.colours span { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+.dot { width: 30px; height: 30px; border-radius: 50%; flex: none; }
+.dot.g { background: var(--green); } .dot.y { background: var(--yellow); } .dot.r { background: var(--red); }
+
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.feature { padding: 22px 24px; }
+.feature h3 { margin: 0 0 6px; font-size: 1.08rem; }
+.feature p { margin: 0; color: var(--muted); font-size: 15px; }
+.feature .mini { display: block; width: min(220px, 100%); height: auto; margin: 16px 0 0; border-radius: 12px; box-shadow: var(--shadow); }
+.feature.big { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+.feature ul { margin: 8px 0 0; padding-left: 20px; color: var(--muted); font-size: 15px; }
+.flag { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--task); color: var(--on-primary); font-size: 13px; font-weight: 700; vertical-align: -4px; }
+
+.privacy { padding: 32px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; }
+.privacy h2 { margin-bottom: 12px; }
+.privacy ul { margin: 0; padding-left: 20px; }
+.privacy li { margin: 6px 0; }
+
+.install { padding: 32px; }
+.install ol { margin: 0 0 18px; padding-left: 22px; }
+.install li { margin: 8px 0; }
+code { font: 14px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: oklch(93% 0.01 250); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 10px 12px; border-top: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+
+.faq details { padding: 16px 20px; margin-bottom: 12px; }
+.faq summary { cursor: pointer; font-weight: 650; }
+.faq details p { margin: 10px 0 0; color: var(--muted); }
+
+footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: minmax(0, 1fr); padding-top: 44px; gap: 36px; }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+  .features, .feature.big, .privacy { grid-template-columns: minmax(0, 1fr); }
+  .top nav { display: none; }
+  .lang { margin-left: auto; }
+  .floaty.g { left: -30px; } .floaty.r { right: -30px; } .floaty.y { right: -10px; }
+}
+@media (max-width: 480px) {
+  body { font-size: 16px; }
+  section { padding: 40px 0; }
+  .privacy, .install { padding: 22px; }
+  .btn { width: 100%; justify-content: center; }
+  th, td { padding: 8px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top glass">
+    <a class="brand" href="#top"><img src="img/icon128.png" alt="">TabBubbles</a>
+    <nav aria-label="Page">
+      <a href="#how"><span class="en">How it works</span><span class="zh">怎么用</span></a>
+      <a href="#features"><span class="en">Features</span><span class="zh">功能</span></a>
+      <a href="#privacy"><span class="en">Privacy</span><span class="zh">隐私</span></a>
+      <a href="#install"><span class="en">Install</span><span class="zh">安装</span></a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <button class="lang" id="lang" type="button" aria-label="Switch language / 切换语言">中文</button>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div>
+        <h1><span class="en">Too many tabs? See them all at a glance.</span><span class="zh">标签页太多？一眼看清全部。</span></h1>
+        <p class="lead">
+          <span class="en">TabBubbles shows every open tab as a square tile in your browser's side panel, coloured by how long you have left it. Pop the ones you don't need, and get a nudge about things you left half done.</span>
+          <span class="zh">TabBubbles 在浏览器右侧的侧边栏里，把每个打开的标签页变成一个彩色方块，颜色告诉你它被冷落了多久。不要的点一下就关掉，做到一半的事情它会提醒你。</span>
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/suninnn/tab-bubbles/releases/latest" id="download"><span class="en">Download from GitHub</span><span class="zh">从 GitHub 下载</span></a>
+          <a class="btn ghost" href="#install"><span class="en">How to install</span><span class="zh">安装步骤</span></a>
+        </div>
+        <p class="note"><span class="en">Free and open source (MIT). For Chrome 121 and newer.</span><span class="zh">免费、开源（MIT 协议）。适用于 Chrome 121 及以上版本。</span></p>
+      </div>
+      <div class="shot-panel glass">
+        <span class="floaty g" aria-hidden="true"></span><span class="floaty y" aria-hidden="true"></span><span class="floaty r" aria-hidden="true"></span>
+        <img src="img/panel-light.png" width="380" height="630" alt="The TabBubbles side panel: an Unfinished card at the top, then a grid of green, yellow and red tiles for open tabs.">
+      </div>
+    </section>
+
+    <section id="how">
+      <h2><span class="en">How it works</span><span class="zh">怎么用</span></h2>
+      <p class="sub"><span class="en">Three steps, no account, nothing to set up.</span><span class="zh">三步就好，不用注册，不用设置。</span></p>
+      <ol class="steps">
+        <li class="glass">
+          <h3><span class="en">Click the icon</span><span class="zh">点一下图标</span></h3>
+          <p><span class="en">The TabBubbles panel opens on the right side of your browser and stays open while you browse.</span><span class="zh">TabBubbles 在浏览器右侧打开，一边浏览一边开着。</span></p>
+        </li>
+        <li class="glass">
+          <h3><span class="en">See what you forgot</span><span class="zh">一眼看出被遗忘的</span></h3>
+          <p><span class="en">Every tab is a square tile, all the same size. The colour tells you how long you've left it: green, then yellow, then red.</span><span class="zh">每个标签页是一个同样大小的方块。颜色告诉你多久没看了：绿色、黄色，再到红色。</span></p>
+        </li>
+        <li class="glass">
+          <h3><span class="en">Pop or go back</span><span class="zh">关掉，或者回去</span></h3>
+          <p><span class="en">Hover a tile and press × to close that tab, or click the tile to jump straight back to it.</span><span class="zh">鼠标移到方块上点 × 关掉它，或者直接点方块跳回那个标签页。</span></p>
+        </li>
+      </ol>
+      <figure class="wide-shot glass">
+        <img src="img/browser-light.png" width="1281" height="640" alt="A web page on the left and the TabBubbles side panel on the right.">
+        <figcaption><span class="en">TabBubbles sits in the side panel next to the page you're on.</span><span class="zh">TabBubbles 就在你正在看的网页旁边。</span></figcaption>
+      </figure>
+    </section>
+
+    <section id="features">
+      <h2><span class="en">What it does</span><span class="zh">能做什么</span></h2>
+      <p class="sub"><span class="en">Three colours tell you where to look.</span><span class="zh">三种颜色告诉你该看哪里。</span></p>
+      <div class="colours">
+        <span><i class="dot g"></i><span class="en">Fresh: seen in the last 15 min</span><span class="zh">新鲜：15 分钟内看过</span></span>
+        <span><i class="dot y"></i><span class="en">15 min to 1 hour</span><span class="zh">15 分钟到 1 小时</span></span>
+        <span><i class="dot r"></i><span class="en">Idle: over 1 hour (you can change this)</span><span class="zh">闲置：超过 1 小时（可以调整）</span></span>
+      </div>
+      <div class="features">
+        <div class="feature big glass">
+          <div>
+            <h3><span class="en"><span class="flag">!</span> Remembers what you left half done</span><span class="zh"><span class="flag">!</span> 记得你做到一半的事</span></h3>
+            <p><span class="en">An <b>Unfinished</b> list at the top shows tabs that look half done, what's left, and how long ago you left them:</span><span class="zh">顶部的<b>未完成</b>列表会列出看起来没做完的标签页、还差什么、你多久前离开的：</span></p>
+            <ul>
+              <li><span class="en">a page waiting for a verification code</span><span class="zh">等着输入验证码的页面</span></li>
+              <li><span class="en">a form you started filling in</span><span class="zh">填了一半的表单</span></li>
+              <li><span class="en">a checkout or application page</span><span class="zh">结账或申请页面</span></li>
+              <li><span class="en">text you typed but never sent</span><span class="zh">打了字还没发出去的文本</span></li>
+            </ul>
+          </div>
+          <div>
+            <h3><span class="en">📌 Mark anything as a task</span><span class="zh">📌 手动标成待办</span></h3>
+            <p><span class="en">Press 📌 inside any tile and add a short note, like "reply to recruiter". It joins the Unfinished list until you press Done.</span><span class="zh">点方块里的 📌，写一句备注，比如"回复招聘人员"。它会留在未完成列表里，直到你点完成。</span></p>
+          </div>
+        </div>
+        <div class="feature glass">
+          <h3><span class="en">Pop one, or pop them all</span><span class="zh">一个一个关，或者一次全关</span></h3>
+          <p><span class="en">× inside a tile closes that tab. <b>Pop idle</b> closes every idle tab at once, after asking, and skips pinned tabs, tabs playing sound and unfinished tasks.</span><span class="zh">方块里的 × 关掉这个标签页。<b>Pop idle</b> 先问你一句，再一次关掉所有闲置标签页，固定的、正在放声音的、未完成的都不会关。</span></p>
+        </div>
+        <div class="feature glass">
+          <h3><span class="en">Group by window or site</span><span class="zh">按窗口或网站分组</span></h3>
+          <p><span class="en">See tiles per window, per website, or all together. <b>Idle only</b> hides fresh tabs so you only see what needs a decision.</span><span class="zh">按窗口、按网站或者全部放在一起看。<b>只看闲置</b>会隐藏新鲜的标签页，只留下需要你处理的。</span></p>
+        </div>
+        <div class="feature glass">
+          <h3><span class="en">Gentle reminders</span><span class="zh">轻轻提醒</span></h3>
+          <p><span class="en">The toolbar badge counts unfinished tasks you've been away from too long, or idle tabs. You can also turn on a notification, once per task.</span><span class="zh">工具栏图标上的数字显示你离开太久的未完成任务，或者闲置标签页的数量。也可以打开系统通知，每个任务只提醒一次。</span></p>
+        </div>
+        <div class="feature glass">
+          <h3><span class="en">Light and dark</span><span class="zh">浅色和深色</span></h3>
+          <p><span class="en">Light by default, and dark when your computer is in dark mode. Works with the keyboard too: Tab to a tile, Enter to open it, Delete to close it.</span><span class="zh">默认浅色，电脑切到深色模式时自动变深色。也可以用键盘：Tab 选中方块，回车打开，Delete 关掉。</span></p>
+          <img class="mini" src="img/panel-dark.png" width="380" height="630" loading="lazy" alt="The TabBubbles side panel in dark mode.">
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="privacy glass">
+        <div>
+          <h2><span class="en">Your tabs stay yours</span><span class="zh">你的标签页只属于你</span></h2>
+          <p class="sub" style="margin:0"><span class="en">TabBubbles has no server, no account and no analytics.</span><span class="zh">TabBubbles 没有服务器、不用账号、不做任何统计。</span></p>
+        </div>
+        <ul>
+          <li><span class="en">Everything is stored in your own browser.</span><span class="zh">所有数据都只存在你自己的浏览器里。</span></li>
+          <li><span class="en">Nothing about your tabs or pages is sent anywhere.</span><span class="zh">你的标签页和网页内容不会发送到任何地方。</span></li>
+          <li><span class="en">To spot unfinished pages it only checks whether fields are empty or filled in; what you typed is never stored or sent.</span><span class="zh">为了发现没做完的页面，它只看输入框是空的还是填了，你输入的内容不会被保存或发送。</span></li>
+          <li><span class="en">The code is open source (MIT), so anyone can check it.</span><span class="zh">代码开源（MIT），谁都可以检查。</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="install glass">
+        <h2><span class="en">Install in about a minute</span><span class="zh">一分钟装好</span></h2>
+        <p class="sub"><span class="en">TabBubbles isn't in the Chrome Web Store yet, so you load it yourself:</span><span class="zh">TabBubbles 还没上架 Chrome 应用商店，所以需要手动加载：</span></p>
+        <ol>
+          <li><span class="en">Download <code>tabbubbles-v0.1.0.zip</code> from the <a href="https://github.com/suninnn/tab-bubbles/releases/latest">latest release</a> and unzip it.</span><span class="zh">从 <a href="https://github.com/suninnn/tab-bubbles/releases/latest">最新版本页面</a>下载 <code>tabbubbles-v0.1.0.zip</code> 并解压。</span></li>
+          <li><span class="en">Open <code>chrome://extensions</code> and switch on <b>Developer mode</b> (top right).</span><span class="zh">打开 <code>chrome://extensions</code>，打开右上角的<b>开发者模式</b>。</span></li>
+          <li><span class="en">Click <b>Load unpacked</b> and pick the unzipped folder (the one with <code>manifest.json</code>).</span><span class="zh">点<b>加载已解压的扩展程序</b>，选择解压后的文件夹（里面有 <code>manifest.json</code>）。</span></li>
+          <li><span class="en">Pin TabBubbles from the puzzle-piece menu, then click its icon.</span><span class="zh">在拼图图标菜单里把 TabBubbles 固定到工具栏，然后点它的图标。</span></li>
+        </ol>
+        <table>
+          <thead><tr><th><span class="en">Browser</span><span class="zh">浏览器</span></th><th><span class="en">Status</span><span class="zh">状态</span></th></tr></thead>
+          <tbody>
+            <tr><td>Chrome 121+</td><td><span class="en">✅ Tested</span><span class="zh">✅ 已测试</span></td></tr>
+            <tr><td>Edge, Brave</td><td><span class="en">Should work, not tested yet</span><span class="zh">应该可以用，还没测试</span></td></tr>
+            <tr><td>Firefox, Safari</td><td><span class="en">Not supported yet</span><span class="zh">暂不支持</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="faq" class="faq">
+      <h2>FAQ</h2>
+      <p class="sub"><span class="en">Short answers to common questions.</span><span class="zh">常见问题。</span></p>
+      <details class="glass"><summary><span class="en">Is it free?</span><span class="zh">要钱吗？</span></summary>
+        <p><span class="en">Yes. TabBubbles is free and open source under the MIT licence.</span><span class="zh">不要钱。TabBubbles 免费，并以 MIT 协议开源。</span></p></details>
+      <details class="glass"><summary><span class="en">Does closing a tile lose my tab?</span><span class="zh">关掉方块，标签页就没了吗？</span></summary>
+        <p><span class="en">Yes, × closes that tab, the same as closing it in the tab bar. Pop idle asks first and never closes pinned tabs, tabs playing sound or unfinished tasks.</span><span class="zh">是的，× 会关掉这个标签页，和在标签栏里关掉一样。Pop idle 会先问你，并且不会关固定的、正在放声音的和未完成的标签页。</span></p></details>
+      <details class="glass"><summary><span class="en">Can I change when a tab counts as idle?</span><span class="zh">能改"闲置"的时间吗？</span></summary>
+        <p><span class="en">Yes. In Settings at the bottom of the panel, set the idle time (1 hour by default) and when to be reminded about unfinished tasks. The colours follow your setting.</span><span class="zh">可以。在侧边栏底部的设置里改闲置时间（默认 1 小时）和未完成任务的提醒时间，颜色会跟着变。</span></p></details>
+      <details class="glass"><summary><span class="en">Why does it ask to access the sites I visit?</span><span class="zh">为什么要访问我打开的网站？</span></summary>
+        <p><span class="en">So it can notice an unfinished page, like an empty verification-code box or a half-filled form. That check happens on your computer and nothing is sent anywhere.</span><span class="zh">为了发现没做完的页面，比如空的验证码框或填了一半的表单。这个检查只在你的电脑上进行，不会发送任何内容。</span></p></details>
+      <details class="glass"><summary><span class="en">Is it in the Chrome Web Store?</span><span class="zh">在 Chrome 应用商店里吗？</span></summary>
+        <p><span class="en">Not yet. For now, install it with the four steps above.</span><span class="zh">还没有。目前请按上面四步安装。</span></p></details>
+    </section>
+  </main>
+
+  <footer>
+    <span>TabBubbles v0.1.0 · <span class="en">MIT licence</span><span class="zh">MIT 协议</span> · <a href="https://github.com/suninnn/tab-bubbles"><span class="en">Source on GitHub</span><span class="zh">GitHub 源码</span></a></span>
+    <span><span class="en">Made for people with too many tabs.</span><span class="zh">献给标签页太多的你。</span></span>
+  </footer>
+</div>
+<script>
+// Language toggle: English / 中文, remembered on this device only.
+(() => {
+  const root = document.documentElement, btn = document.getElementById("lang");
+  const set = l => { root.dataset.lang = l; root.lang = l === "zh" ? "zh-CN" : "en"; btn.textContent = l === "zh" ? "English" : "中文";
+    try { localStorage.setItem("tabbubbles:lang", l); } catch (e) {} };
+  let saved = null; try { saved = localStorage.getItem("tabbubbles:lang"); } catch (e) {}
+  set(saved || ((navigator.language || "").toLowerCase().startsWith("zh") ? "zh" : "en"));
+  btn.addEventListener("click", () => set(root.dataset.lang === "zh" ? "en" : "zh"));
+})();
+</script>
+</body>
+</html>

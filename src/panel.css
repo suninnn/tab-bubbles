@@ -1,0 +1,172 @@
+/* TabBubbles side panel: frosted glass, light by default, dark when the system is dark.
+ * Every colour is a token below; motion is transform/opacity only and switches off for prefers-reduced-motion. */
+:root {
+  color-scheme: light dark;
+  /* page + glass */
+  --bg-0: oklch(97.5% 0.012 250);
+  --bg-glow-1: oklch(90% 0.06 240 / .75);
+  --bg-glow-2: oklch(92% 0.05 330 / .6);
+  --bg-glow-3: oklch(93% 0.06 170 / .55);
+  --glass: oklch(99% 0.004 250 / .62);
+  --glass-strong: oklch(99% 0.004 250 / .82);
+  --glass-edge: oklch(100% 0 0 / .75);
+  --glass-line: oklch(70% 0.02 250 / .22);
+  --shadow: 0 1px 1px oklch(30% 0.03 250 / .04), 0 8px 24px -6px oklch(30% 0.04 250 / .16);
+  --shadow-pop: 0 18px 40px -12px oklch(25% 0.04 250 / .35);
+  /* text */
+  --text: oklch(24% 0.02 255);
+  --muted: oklch(47% 0.02 255);
+  /* accents */
+  --task: oklch(60% 0.17 45);
+  --task-glass: oklch(97% 0.03 60 / .7);
+  --task-line: oklch(80% 0.09 55 / .55);
+  --task-sub: oklch(45% 0.12 45);
+  --primary: oklch(55% 0.17 260);
+  --on-primary: oklch(99% 0 0);
+  --danger: oklch(53% 0.19 27);
+  --danger-strong: oklch(58% 0.2 27);
+  --focus: oklch(55% 0.17 260);
+  --chip-bg: oklch(27% 0.02 255 / .88);
+  --chip-fg: oklch(99% 0 0);
+  --bubble-ink: oklch(22% 0.03 255);
+  /* bubble colours: flat, light, 3 levels */
+  --band-0: oklch(89% 0.10 150);   /* light green: fresh */
+  --band-1: oklch(93% 0.12 100);   /* light yellow: 15 min to idle */
+  --band-2: oklch(86% 0.09 22);    /* light red: idle */
+  --blur: blur(18px) saturate(160%);
+  --radius: 16px;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-0: oklch(16% 0.025 265);
+    --bg-glow-1: oklch(35% 0.12 265 / .55);
+    --bg-glow-2: oklch(32% 0.1 320 / .45);
+    --bg-glow-3: oklch(34% 0.08 185 / .4);
+    --glass: oklch(26% 0.025 265 / .5);
+    --glass-strong: oklch(24% 0.025 265 / .82);
+    --glass-edge: oklch(100% 0 0 / .1);
+    --glass-line: oklch(100% 0 0 / .08);
+    --shadow: 0 1px 1px oklch(0% 0 0 / .2), 0 10px 28px -8px oklch(0% 0 0 / .55);
+    --shadow-pop: 0 18px 44px -10px oklch(0% 0 0 / .7);
+    --text: oklch(94% 0.01 255);
+    --muted: oklch(72% 0.02 255);
+    --task: oklch(74% 0.16 52);
+    --task-glass: oklch(32% 0.06 50 / .5);
+    --task-line: oklch(60% 0.12 50 / .35);
+    --task-sub: oklch(84% 0.08 55);
+    --danger: oklch(74% 0.14 25);
+    --danger-strong: oklch(60% 0.2 27);
+    --focus: oklch(80% 0.1 250);
+    --chip-bg: oklch(15% 0.02 265 / .9);
+    --band-0: oklch(80% 0.11 150);
+    --band-1: oklch(86% 0.12 100);
+    --band-2: oklch(77% 0.11 22);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { min-height: 100%; background: var(--bg-0); }
+body {
+  margin: 0; min-height: 100vh; color: var(--text);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(60% 40% at 0% 0%, var(--bg-glow-1), transparent 70%),
+    radial-gradient(55% 35% at 100% 35%, var(--bg-glow-2), transparent 70%),
+    radial-gradient(70% 40% at 20% 100%, var(--bg-glow-3), transparent 70%),
+    var(--bg-0);
+  background-attachment: fixed;
+  padding: 10px 0 12px;
+}
+
+.glass {
+  background: var(--glass); border: 1px solid var(--glass-edge); border-radius: var(--radius);
+  box-shadow: var(--shadow); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+}
+
+header {
+  position: sticky; top: 8px; z-index: 5; margin: 0 10px 8px; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.brand { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+.summary { color: var(--muted); font-size: 12px; }
+
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--task); margin: 0 0 6px; }
+.tasks { margin: 0 10px 10px; padding: 12px 12px 6px; background: var(--task-glass); border-color: var(--task-line); }
+.tasks ul { list-style: none; margin: 0; padding: 0; }
+.tasks li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 7px 0; border-top: 1px solid var(--task-line); }
+.tasks li:first-child { border-top: 0; }
+.tasks .what { min-width: 0; }
+.tasks .what b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tasks .what span { color: var(--task-sub); font-size: 12px; }
+
+button {
+  background: var(--glass-strong); color: var(--text); border: 1px solid var(--glass-line); border-radius: 999px;
+  padding: 4px 11px; cursor: pointer; font: inherit; white-space: nowrap;
+  transition: background-color .15s var(--ease-out), border-color .15s var(--ease-out), transform .1s var(--ease-out);
+}
+button:hover { border-color: var(--focus); }
+button:active { transform: translateY(1px); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+button.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+button.danger { color: var(--danger); }
+
+.bar {
+  margin: 0 10px 10px; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; color: var(--muted);
+}
+.bar #popIdle { margin-left: auto; }
+select, input[type=number], input:not([type]) {
+  background: var(--glass-strong); color: var(--text); border: 1px solid var(--glass-line); border-radius: 8px; padding: 3px 6px; font: inherit;
+}
+input[type=number] { width: 64px; }
+
+/* Tile grid: each group is a glass card holding an even grid of equal-size square tiles. */
+.group { margin: 0 10px 10px; padding: 10px 10px 12px; }
+.group h3 { margin: 0 0 6px 2px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.field { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.bubble {
+  position: relative; aspect-ratio: 1; min-width: 0; border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; cursor: pointer; padding: 8px; color: var(--bubble-ink);
+  background: var(--tint);   /* flat, solid light colour by idle level (band-N class) */
+  transition: opacity .2s var(--ease-out), transform .2s var(--ease-out);
+}
+.band-0 { --tint: var(--band-0); } .band-1 { --tint: var(--band-1); } .band-2 { --tint: var(--band-2); }
+.legend { margin: -2px 14px 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.legend i { width: 11px; height: 11px; border-radius: 50%; background: var(--tint); }
+.bubble.active { outline: 2px solid var(--focus); outline-offset: 3px; }
+.bubble.task { box-shadow: 0 0 0 2.5px var(--task); }
+.bubble img { width: 16px; height: 16px; border-radius: 4px; }
+.bubble .t { font-size: 11px; line-height: 1.15; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-weight: 650; margin-top: 2px; }
+.bubble .age { font-size: 9px; opacity: .75; }
+
+/* ✓/📌 and × sit INSIDE the circle so moving to them never leaves the hover area. */
+.bubble .acts { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: center; gap: 4px;
+  opacity: 0; pointer-events: none; transition: opacity .1s var(--ease-out); }
+.bubble:hover .acts, .bubble:focus-within .acts { opacity: 1; pointer-events: auto; }
+.bubble .x, .bubble .pin { width: 20px; height: 20px; border-radius: 50%; border: 0; padding: 0; font-size: 12px; line-height: 20px;
+  background: var(--chip-bg); color: var(--chip-fg); box-shadow: 0 1px 3px oklch(0% 0 0 / .3); }
+.bubble .x:hover, .bubble .pin:hover { transform: scale(1.15); }
+.bubble .x:hover { background: var(--danger-strong); }
+.bubble:hover .age, .bubble:focus-within .age { visibility: hidden; }
+.bubble:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.bubble .x:focus-visible, .bubble .pin:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.bubble .flag { position: absolute; bottom: -2px; right: -2px; background: var(--task); color: var(--chip-fg); border-radius: 9px; font-size: 10px; padding: 0 5px; }
+.bubble.popping { transform: scale(.85); opacity: 0; }
+
+.mark { position: fixed; left: 10px; right: 10px; bottom: 12px; z-index: 10; padding: 12px; background: var(--glass-strong); box-shadow: var(--shadow-pop); }
+.mark input { width: 100%; margin: 8px 0; }
+.mark .row { display: flex; gap: 8px; }
+.markTitle { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.settings { margin: 0 10px; padding: 10px 12px; color: var(--muted); }
+.settings summary { cursor: pointer; }
+.settings label { display: block; margin: 8px 0; }
+.privacy { font-size: 11px; }
+.empty { color: var(--muted); padding: 24px 14px; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble, .acts, button { transition: opacity .12s linear; }
+  .bubble.popping { transform: none; }
+}
